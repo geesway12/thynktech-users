@@ -1,5 +1,4 @@
 import { db } from './db.js';
-
 /**
  * Generates a randomized patient ID based on:
  * - 2 letters from Region
@@ -7,8 +6,8 @@ import { db } from './db.js';
  * - 2 letters from Facility
  * - 6-digit random serial number
  * - All characters are mixed and shuffled
- * - Appended with last 2 digits of year from registration date
- * Example Output: "A2S0G6C1N2O5-22"
+ * - Appended with last 2 digits of year from registration date (no dash)
+ * Example Output: "A2S0G6C1N2O522"
  */
 export function generatePatientID(registrationDate = new Date()) {
   const region = db.facility?.region?.replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase() || "RG";
@@ -31,5 +30,5 @@ export function generatePatientID(registrationDate = new Date()) {
 
   const year = String(new Date(registrationDate).getFullYear()).slice(-2);
 
-  return `${allChars.join('')}-${year}`;
+  return `${allChars.join('')}${year}`;
 }
