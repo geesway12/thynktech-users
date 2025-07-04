@@ -1,6 +1,6 @@
-# AfyaCare
+# Thynktech
 
-**AfyaCare** is a modern, offline-first, modular health records & register app (PWA) for rural clinics and health posts.
+**Thynktech** is a modern, offline-first, modular health records & register app (PWA) for rural clinics and health posts.
 
 ## Features
 
@@ -44,4 +44,4 @@ MIT — feel free to use and adapt for your facility or project!
 
 ---
 
-*Built for the realities of rural Africa, by [Your Name/Team].*
+*Built for the realities of rural Africa, by Thynktech.*
