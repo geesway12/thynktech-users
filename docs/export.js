@@ -1,1 +1,196 @@
-import{db}from"./db.js";function toCSV(t,e,n={}){let i=[e.join(","),...t.map(t=>e.map(e=>`"${(t[e]??"").toString().replace(/"/g,'""')}"`).join(","))].join("\r\n");return n.footer&&(i+=`\r\n${n.footer}`),n.title&&(i=`${n.title}\r\n${i}`),i}function facilityMeta(){const t=db.facility||{};return[`Facility: ${t.name||""}`,`Region: ${t.region||""}`,`District: ${t.district||""}`,`Community: ${t.community||""}`,`Contact: ${t.contact||""}`,`Generated: ${(new Date).toLocaleString()}`].filter(Boolean).join(" | ")}function downloadFile(t,e,n="text/csv"){t.endsWith(".html")||t.endsWith(".htm")||(e=btoa(unescape(encodeURIComponent(e))),n="application/json");const i=new Blob([e],{type:n}),o=URL.createObjectURL(i),r=document.createElement("a");r.href=o,r.download=t,document.body.appendChild(r),r.click(),setTimeout(()=>{document.body.removeChild(r),URL.revokeObjectURL(o)},100)}export function exportPatients(){downloadFile("patients_line_list.csv",toCSV(db.patients||[],["patientID","name","dob","age","sex","phone","address","idType","idNumber","registrationDate"],{title:`PATIENTS LINE LIST - ${db.facility?.name||""}`,footer:facilityMeta()}))}export function exportVisits(){downloadFile("visits_line_list.csv",toCSV(db.visits||[],["visitID","patientID","date","service","provider","notes"],{title:`VISITS LINE LIST - ${db.facility?.name||""}`,footer:facilityMeta()}))}export function exportServiceDelivery(){downloadFile("service_delivery_list.csv",toCSV(db.services||[],["serviceID","patientID","service","date","provider","outcome"],{title:`SERVICE DELIVERY LIST - ${db.facility?.name||""}`,footer:facilityMeta()}))}export function exportRegisters(){downloadFile("registers_list.csv",toCSV(db.registers||[],["registerID","name","status","created","lastUsed"],{title:`REGISTERS LIST - ${db.facility?.name||""}`,footer:facilityMeta()}))}export function exportSummaryReport(){const t=db.facility||{};downloadFile("summary_report.txt",[`SUMMARY REPORT - ${t.name||""}`,`Region: ${t.region||""} | District: ${t.district||""} | Community: ${t.community||""}`,`Contact: ${t.contact||""}`,"----------------------------------------",`Total Patients: ${(db.patients||[]).length}`,`Total Visits: ${(db.visits||[]).length}`,`Total Services: ${(db.services||[]).length}`,`Active Registers: ${(db.registers||[]).filter(t=>"active"===t.status).length}`,`Inactive Registers: ${(db.registers||[]).filter(t=>"inactive"===t.status).length}`,`Report Date: ${(new Date).toLocaleString()}`].join("\n"),"text/plain")}export function exportPatientA4(t){const e=db.facility||{},n=(db.patients||[]).find(e=>e.patientID===t);if(!n)return alert("Patient not found!");const i=(db.visits||[]).filter(e=>e.patientID===t),o=(db.services||[]).filter(e=>e.patientID===t),r=`\n    <html>\n    <head>\n      <title>Patient Report - ${n.name}</title>\n      <style>\n        body { font-family: Arial, sans-serif; margin: 40px; }\n        h2 { border-bottom: 1px solid #333; }\n        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }\n        th, td { border: 1px solid #999; padding: 6px 8px; }\n        th { background: #eee; }\n        .facility-header { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }\n        .facility-meta { font-size: 0.95em; color: #555; margin-bottom: 20px; }\n        .footer { margin-top:40px;font-size:12px;color:#888; }\n        .logo { max-height: 60px; margin-bottom: 10px; }\n      </style>\n    </head>\n    <body>\n      ${e.image?`<img src="${e.image}" class="logo"><br>`:""}\n      <div class="facility-header">${e.name||""}</div>\n      <div class="facility-meta">\n        ${[e.region&&`Region: ${e.region}`,e.district&&`District: ${e.district}`,e.community&&`Community: ${e.community}`,e.contact&&`Contact: ${e.contact}`].filter(Boolean).join(" | ")}\n      </div>\n      <h2>Patient Report</h2>\n      <table>\n        <tr><th>ID</th><td>${n.patientID}</td></tr>\n        <tr><th>Name</th><td>${n.name}</td></tr>\n        <tr><th>Date of Birth</th><td>${n.dob||""}</td></tr>\n        <tr><th>Age</th><td>${n.age||""}</td></tr>\n        <tr><th>Sex</th><td>${n.sex||""}</td></tr>\n        <tr><th>Phone</th><td>${n.phone||""}</td></tr>\n        <tr><th>Address</th><td>${n.address||""}</td></tr>\n        <tr><th>ID Type</th><td>${n.idType||""}</td></tr>\n        <tr><th>ID Number</th><td>${n.idNumber||""}</td></tr>\n        <tr><th>Registration Date</th><td>${n.registrationDate||""}</td></tr>\n      </table>\n      <h3>Visits</h3>\n      <table>\n        <tr><th>Date</th><th>Service</th><th>Provider</th><th>Notes</th></tr>\n        ${i.map(t=>`<tr>\n          <td>${t.date||""}</td>\n          <td>${t.service||""}</td>\n          <td>${t.provider||""}</td>\n          <td>${t.notes||""}</td>\n        </tr>`).join("")}\n      </table>\n      <h3>Services Delivered</h3>\n      <table>\n        <tr><th>Date</th><th>Service</th><th>Provider</th><th>Outcome</th></tr>\n        ${o.map(t=>`<tr>\n          <td>${t.date||""}</td>\n          <td>${t.service||""}</td>\n          <td>${t.provider||""}</td>\n          <td>${t.outcome||""}</td>\n        </tr>`).join("")}\n      </table>\n      <footer class="footer">\n        ${facilityMeta()}<br>\n        Generated: ${(new Date).toLocaleString()}\n      </footer>\n    </body>\n    </html>\n  `,a=window.open("","_blank");a.document.write(r),a.document.close(),a.print()}export function encryptData(t){return btoa(unescape(encodeURIComponent(t)))}export function decryptData(t){try{return decodeURIComponent(escape(atob(t)))}catch{return t}}
+import { db } from './db.js';
+
+// Utility to convert array of objects to CSV, with optional header/footer
+function toCSV(data, columns, opts = {}) {
+  const header = columns.join(',');
+  const rows = data.map(row =>
+    columns.map(col => `"${(row[col] ?? '').toString().replace(/"/g, '""')}"`).join(',')
+  );
+  let csv = [header, ...rows].join('\r\n');
+  if (opts.footer) csv += `\r\n${opts.footer}`;
+  if (opts.title) csv = `${opts.title}\r\n${csv}`;
+  return csv;
+}
+
+// Facility metadata string
+function facilityMeta() {
+  const f = db.facility || {};
+  return [
+    `Facility: ${f.name || ''}`,
+    `Region: ${f.region || ''}`,
+    `District: ${f.district || ''}`,
+    `Community: ${f.community || ''}`,
+    `Contact: ${f.contact || ''}`,
+    `Generated: ${new Date().toLocaleString()}`
+  ].filter(Boolean).join(' | ');
+}
+
+// Download helper (encrypt all except HTML)
+function downloadFile(filename, content, type = "text/csv") {
+  // Only skip encryption for HTML (printable) exports
+  if (!filename.endsWith('.html') && !filename.endsWith('.htm')) {
+    content = btoa(unescape(encodeURIComponent(content))); // handle unicode
+    type = "application/json";
+  }
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+
+// Export patients line list
+export function exportPatients() {
+  const columns = ["patientID", "name", "dob", "age", "sex", "phone", "address", "idType", "idNumber", "registrationDate"];
+  const csv = toCSV(db.patients || [], columns, {
+    title: `PATIENTS LINE LIST - ${db.facility?.name || ''}`,
+    footer: facilityMeta()
+  });
+  downloadFile("patients_line_list.csv", csv);
+}
+
+// Export visits line list
+export function exportVisits() {
+  const columns = ["visitID", "patientID", "date", "service", "provider", "notes"];
+  const csv = toCSV(db.visits || [], columns, {
+    title: `VISITS LINE LIST - ${db.facility?.name || ''}`,
+    footer: facilityMeta()
+  });
+  downloadFile("visits_line_list.csv", csv);
+}
+
+// Export service delivery list
+export function exportServiceDelivery() {
+  const columns = ["serviceID", "patientID", "service", "date", "provider", "outcome"];
+  const csv = toCSV(db.services || [], columns, {
+    title: `SERVICE DELIVERY LIST - ${db.facility?.name || ''}`,
+    footer: facilityMeta()
+  });
+  downloadFile("service_delivery_list.csv", csv);
+}
+
+// Export register status (active/inactive)
+export function exportRegisters() {
+  const columns = ["registerID", "name", "status", "created", "lastUsed"];
+  const csv = toCSV(db.registers || [], columns, {
+    title: `REGISTERS LIST - ${db.facility?.name || ''}`,
+    footer: facilityMeta()
+  });
+  downloadFile("registers_list.csv", csv);
+}
+
+// Export summary report (example: patient count, visit count, etc.)
+export function exportSummaryReport() {
+  const f = db.facility || {};
+  const report = [
+    `SUMMARY REPORT - ${f.name || ''}`,
+    `Region: ${f.region || ''} | District: ${f.district || ''} | Community: ${f.community || ''}`,
+    `Contact: ${f.contact || ''}`,
+    `----------------------------------------`,
+    `Total Patients: ${(db.patients || []).length}`,
+    `Total Visits: ${(db.visits || []).length}`,
+    `Total Services: ${(db.services || []).length}`,
+    `Active Registers: ${(db.registers || []).filter(r => r.status === 'active').length}`,
+    `Inactive Registers: ${(db.registers || []).filter(r => r.status === 'inactive').length}`,
+    `Report Date: ${new Date().toLocaleString()}`
+  ].join('\n');
+  downloadFile("summary_report.txt", report, "text/plain");
+}
+
+// Export single patient A4 report (simple HTML, printable)
+export function exportPatientA4(patientID) {
+  const f = db.facility || {};
+  const p = (db.patients || []).find(x => x.patientID === patientID);
+  if (!p) return alert("Patient not found!");
+  const visits = (db.visits || []).filter(v => v.patientID === patientID);
+  const services = (db.services || []).filter(s => s.patientID === patientID);
+
+  const html = `
+    <html>
+    <head>
+      <title>Patient Report - ${p.name}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h2 { border-bottom: 1px solid #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #999; padding: 6px 8px; }
+        th { background: #eee; }
+        .facility-header { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
+        .facility-meta { font-size: 0.95em; color: #555; margin-bottom: 20px; }
+        .footer { margin-top:40px;font-size:12px;color:#888; }
+        .logo { max-height: 60px; margin-bottom: 10px; }
+      </style>
+    </head>
+    <body>
+      ${f.image ? `<img src="${f.image}" class="logo"><br>` : ""}
+      <div class="facility-header">${f.name || ''}</div>
+      <div class="facility-meta">
+        ${[
+          f.region && `Region: ${f.region}`,
+          f.district && `District: ${f.district}`,
+          f.community && `Community: ${f.community}`,
+          f.contact && `Contact: ${f.contact}`
+        ].filter(Boolean).join(' | ')}
+      </div>
+      <h2>Patient Report</h2>
+      <table>
+        <tr><th>ID</th><td>${p.patientID}</td></tr>
+        <tr><th>Name</th><td>${p.name}</td></tr>
+        <tr><th>Date of Birth</th><td>${p.dob || ''}</td></tr>
+        <tr><th>Age</th><td>${p.age || ''}</td></tr>
+        <tr><th>Sex</th><td>${p.sex || ''}</td></tr>
+        <tr><th>Phone</th><td>${p.phone || ''}</td></tr>
+        <tr><th>Address</th><td>${p.address || ''}</td></tr>
+        <tr><th>ID Type</th><td>${p.idType || ''}</td></tr>
+        <tr><th>ID Number</th><td>${p.idNumber || ''}</td></tr>
+        <tr><th>Registration Date</th><td>${p.registrationDate || ''}</td></tr>
+      </table>
+      <h3>Visits</h3>
+      <table>
+        <tr><th>Date</th><th>Service</th><th>Provider</th><th>Notes</th></tr>
+        ${visits.map(v => `<tr>
+          <td>${v.date || ''}</td>
+          <td>${v.service || ''}</td>
+          <td>${v.provider || ''}</td>
+          <td>${v.notes || ''}</td>
+        </tr>`).join('')}
+      </table>
+      <h3>Services Delivered</h3>
+      <table>
+        <tr><th>Date</th><th>Service</th><th>Provider</th><th>Outcome</th></tr>
+        ${services.map(s => `<tr>
+          <td>${s.date || ''}</td>
+          <td>${s.service || ''}</td>
+          <td>${s.provider || ''}</td>
+          <td>${s.outcome || ''}</td>
+        </tr>`).join('')}
+      </table>
+      <footer class="footer">
+        ${facilityMeta()}<br>
+        Generated: ${new Date().toLocaleString()}
+      </footer>
+    </body>
+    </html>
+  `;
+  const win = window.open("", "_blank");
+  win.document.write(html);
+  win.document.close();
+  win.print();
+}
+
+// Encryption/Decryption helpers
+export function encryptData(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+export function decryptData(str) {
+  try {
+    return decodeURIComponent(escape(atob(str)));
+  } catch {
+    return str; // fallback for legacy/plain files
+  }
+}

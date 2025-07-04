@@ -1,1 +1,427 @@
-import{db,saveDb}from"./db.js";import{generatePatientID}from"./idUtils.js";import{themePicker}from"./app.js";import{calculateAge,formatDate}from"./utils.js";import{createVisitForm}from"./visits.js";import{renderServiceEntryForm}from"./services.js";import{renderAppointmentForm}from"./appointments.js";const fieldTypes=[{value:"text",label:"Text"},{value:"integer",label:"Integer"},{value:"decimal",label:"Decimal"},{value:"select_one",label:"Single Select (select_one)"},{value:"select_multiple",label:"Multiple Select (select_multiple)"},{value:"date",label:"Date"},{value:"time",label:"Time"},{value:"datetime",label:"DateTime"},{value:"note",label:"Note/Label"},{value:"calculate",label:"Calculation"},{value:"image",label:"Image"},{value:"audio",label:"Audio"},{value:"video",label:"Video"},{value:"file",label:"File Upload"},{value:"barcode",label:"Barcode"},{value:"qr_code",label:"QR Code"},{value:"geopoint",label:"Geopoint"},{value:"geotrace",label:"Geotrace"},{value:"geoshape",label:"Geoshape"}];function refresh(e={}){let t=db.patients||[];e.id&&(t=t.filter(t=>t.patientID?.includes(e.id))),e.name&&(t=t.filter(t=>t.name?.toLowerCase().includes(e.name.toLowerCase()))),e.phone&&(t=t.filter(t=>t.phone?.includes(e.phone))),document.getElementById("listBody").innerHTML=0===t.length?'<tr><td colspan="8" class="text-center text-muted">No patients found.</td></tr>':t.map((e,t)=>`\n    <tr>\n      <td>${e.patientID||""}</td>\n      <td>${e.name||""}</td>\n      <td>${formatDate(e.registrationDate)||""}</td>\n      <td>${formatDate(e.dob)||""}</td>\n      <td>${e.age??""}</td>\n      <td>${e.sex||""}</td>\n      <td>${e.phone||""}</td>\n      <td>\n        <button class="btn btn-sm btn-primary me-1" data-i="${t}" data-act="view" title="View/Edit"><i class="bi bi-eye"></i></button>\n        <button class="btn btn-sm btn-danger me-1" data-i="${t}" data-act="del" title="Delete"><i class="bi bi-trash"></i></button>\n        <button class="btn btn-sm btn-outline-success me-1" data-i="${t}" data-act="visit" title="Log Visit"><i class="bi bi-journal-plus"></i></button>\n        <button class="btn btn-sm btn-outline-secondary me-1" data-i="${t}" data-act="service" title="Service Entry"><i class="bi bi-ui-checks-grid"></i></button>\n        <button class="btn btn-sm btn-outline-primary" data-i="${t}" data-act="appoint" title="Book Appointment"><i class="bi bi-calendar-plus"></i></button>\n      </td>\n    </tr>\n    <tr class="visit-form-row d-none" data-form-i="${t}">\n      <td colspan="8"><div class="visit-form-container"></div></td>\n    </tr>`).join(""),document.querySelectorAll("[data-act=view]").forEach(e=>e.onclick=()=>showForm(t[e.dataset.i])),document.querySelectorAll("[data-act=del]").forEach(e=>e.onclick=()=>{confirm("Delete this patient?")&&(db.patients.splice(e.dataset.i,1),saveDb(),refresh())}),document.querySelectorAll("[data-act=visit]").forEach(e=>e.onclick=()=>{const n=e.dataset.i,l=t[n],a=document.querySelector(`.visit-form-row[data-form-i="${n}"]`),i=a.querySelector(".visit-form-container"),o=!a.classList.contains("d-none");document.querySelectorAll(".visit-form-row").forEach(e=>e.classList.add("d-none")),o||(i.innerHTML="",i.appendChild(createVisitForm(l,()=>{setTimeout(()=>a.classList.add("d-none"),2e3)})),a.classList.remove("d-none"))}),document.querySelectorAll("[data-act=service]").forEach(e=>e.onclick=()=>{const n=e.dataset.i,l=t[n];renderServiceEntryForm(l,db.registers||[])}),document.querySelectorAll("[data-act=appoint]").forEach(e=>e.onclick=()=>{const n=e.dataset.i,l=t[n];renderAppointmentForm(l)})}function attachFieldHandlers(){document.querySelectorAll(".editFieldBtn").forEach(e=>e.onclick=()=>showFieldFormPatient(db.customPatientFields[e.dataset.fidx],e.dataset.fidx)),document.querySelectorAll(".deleteFieldBtn").forEach(e=>e.onclick=()=>{confirm("Delete this field? Data already captured for this field will be kept in old records.")&&(db.customPatientFields.splice(e.dataset.fidx,1),saveDb(),refreshFields())}),document.querySelectorAll(".moveUpBtn").forEach(e=>e.onclick=()=>{const t=+e.dataset.fidx;t>0&&([db.customPatientFields[t-1],db.customPatientFields[t]]=[db.customPatientFields[t],db.customPatientFields[t-1]],saveDb(),refreshFields())}),document.querySelectorAll(".moveDownBtn").forEach(e=>e.onclick=()=>{const t=+e.dataset.fidx;t<db.customPatientFields.length-1&&([db.customPatientFields[t],db.customPatientFields[t+1]]=[db.customPatientFields[t+1],db.customPatientFields[t]],saveDb(),refreshFields())})}function refreshFields(){document.querySelector("#customFieldList").innerHTML=(db.customPatientFields||[]).map((e,t)=>renderFieldRow(e,t)).join(""),attachFieldHandlers(),(db.customPatientFields||[]).forEach(e=>{if("select_multiple"===e.type){const t=document.querySelectorAll(`input[id^="custom_${e.name}_"]`),n=document.getElementById(`custom_${e.name}`);t.length>0&&n&&t.forEach(e=>{e.addEventListener("change",()=>{const e=Array.from(t).filter(e=>e.checked).map(e=>e.value);n.value=e.join(", ")})})}})}export function renderPatientList(e){e.innerHTML=`\n    <div class="container my-4">\n      <div class="d-flex justify-content-between align-items-center">\n        <h4><i class="bi bi-people"></i> Patients</h4>\n        ${themePicker}\n      </div>\n\n      \x3c!-- search --\x3e\n      <form id="searchForm" class="row g-2 mb-3">\n        <div class="col-md-2"><input name="id"    class="form-control" placeholder="ID"></div>\n        <div class="col-md-3"><input name="name"  class="form-control" placeholder="Name"></div>\n        <div class="col-md-2"><input name="phone" class="form-control" placeholder="Phone 024-xxx-xxxx"></div>\n        <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search"></i> Search</button></div>\n        <div class="col-md-3 text-end">\n          <button class="btn btn-success w-100" type="button" id="addBtn"><i class="bi bi-person-plus"></i> New Patient</button>\n        </div>\n      </form>\n\n      \x3c!-- list --\x3e\n      <div class="table-responsive">\n        <table class="table table-bordered table-hover align-middle">\n          <thead class="table-light">\n            <tr>\n              <th>ID</th><th>Name</th><th>Reg&nbsp;Date</th><th>DOB</th><th>Age</th>\n              <th>Sex</th><th>Phone</th><th>Actions</th>\n            </tr>\n          </thead>\n          <tbody id="listBody"></tbody>\n        </table>\n      </div>\n\n      <a href="#admin-dashboard" class="btn btn-link mt-2"><i class="bi bi-arrow-left"></i> Back</a>\n      <div id="modalWrap"></div>\n    </div>\n  `,refresh(),document.getElementById("addBtn").onclick=()=>showForm(),document.getElementById("searchForm").onsubmit=e=>{e.preventDefault(),refresh(Object.fromEntries(new FormData(e.target)))}}function close(){document.getElementById("modalWrap").className="",document.getElementById("modalWrap").innerHTML=""}function renderCustomField(e,t){const n=t.customFields&&t.customFields[e.name]||"",l=`custom_${e.name}`;switch(e.type){case"text":default:return`<input id="${l}" class="form-control mb-2" placeholder="${e.label||e.name}" value="${n}">`;case"integer":return`<input id="${l}" type="number" step="1" class="form-control mb-2" placeholder="${e.label||e.name}" value="${n}">`;case"decimal":return`<input id="${l}" type="number" step="any" class="form-control mb-2" placeholder="${e.label||e.name}" value="${n}">`;case"date":return`<input id="${l}" type="date" class="form-control mb-2" value="${n}">`;case"select_one":{let t=e.choices;return"string"==typeof t&&(t=t.split(",").map(e=>e.trim()).filter(Boolean)),Array.isArray(t)||(t=[]),`<select id="${l}" class="form-select mb-2"><option value="">${e.label||e.name}</option>`+t.map(e=>`<option value="${e}"${n===e?" selected":""}>${e}</option>`).join("")+"</select>"}case"select_multiple":{let t=e.choices;return"string"==typeof t&&(t=t.split(",").map(e=>e.trim()).filter(Boolean)),Array.isArray(t)||(t=[]),'<div class="mb-2">'+t.map((e,t)=>{const a=n.split(",").map(e=>e.trim()).includes(e)?"checked":"";return`<div class="form-check form-check-inline">\n              <input class="form-check-input" type="checkbox" id="${l}_${t}" value="${e}" ${a}>\n              <label class="form-check-label" for="${l}_${t}">${e}</label>\n            </div>`}).join("")+`<input type="hidden" id="${l}" value="${n}"></div>`}case"note":return`<div class="alert alert-secondary mb-2">${e.label||e.name}</div>`}}function renderFieldRow(e,t){return`<li class="list-group-item d-flex justify-content-between align-items-center">\n      <span><b>${e.label||e.name}</b> <small class="text-muted">(${e.type})</small></span>\n      <span>\n        <button type="button" class="btn btn-sm btn-outline-primary editFieldBtn" data-fidx="${t}"><i class="bi bi-pencil"></i></button>\n        <button type="button" class="btn btn-sm btn-outline-danger deleteFieldBtn" data-fidx="${t}"><i class="bi bi-trash"></i></button>\n        <button type="button" class="btn btn-sm btn-outline-secondary moveUpBtn" data-fidx="${t}"><i class="bi bi-arrow-up"></i></button>\n        <button type="button" class="btn btn-sm btn-outline-secondary moveDownBtn" data-fidx="${t}"><i class="bi bi-arrow-down"></i></button>\n      </span>\n    </li>`}function showFieldFormPatient(e={name:"",type:"text",required:!1},t=null){const n=document.createElement("div");n.className="modal-overlay",n.innerHTML=`\n      <div class="modal-content mx-auto" style="max-width:400px;">\n        <h6>${null!==t?"Edit Field":"Add Field"}</h6>\n        <form id="fieldForm">\n          <div class="mb-2"><input class="form-control" id="fieldName" placeholder="Field Name" required value="${e.name||""}"></div>\n          <div class="mb-2">\n            <select class="form-select" id="fieldType" required>\n              ${fieldTypes.map(t=>`<option value="${t.value}"${e.type===t.value?" selected":""}>${t.label}</option>`).join("")}\n            </select>\n          </div>\n          <div class="mb-2 form-check">\n            <input class="form-check-input" type="checkbox" id="fieldReq" ${e.required?"checked":""}>\n            <label class="form-check-label" for="fieldReq">Required</label>\n          </div>\n          <div class="mb-2"><input class="form-control" id="fieldDefault" placeholder="Default Value" value="${e.default||""}"></div>\n          <div class="mb-2"><input class="form-control" id="fieldConstraint" placeholder="Constraint/Validation (e.g. min=0,max=100)" value="${e.constraint||""}"></div>\n          <div class="mb-2" id="choicesRow" style="display:${["select_one","select_multiple"].includes(e.type)?"block":"none"}">\n            <input class="form-control" id="fieldChoices" placeholder="Choices (comma-separated, e.g. Yes,No,Unknown)" value="${e.choices||""}" ${["select_one","select_multiple"].includes(e.type)?"required":""}>\n          </div>\n          <div class="mb-2" id="calcRow" style="display:${"calculate"===e.type?"block":"none"}">\n            <input class="form-control" id="fieldCalc" placeholder="Calculation Formula (e.g. today() - dob)" value="${e.calc||""}">\n          </div>\n          <div class="mb-2 d-flex justify-content-between">\n            <button class="btn btn-primary">${null!==t?"Save":"Add"}</button>\n            <button type="button" class="btn btn-secondary" id="cancelFieldBtn">Cancel</button>\n          </div>\n        </form>\n      </div>\n    `,document.body.appendChild(n),n.onclick=e=>{e.target===n&&document.body.removeChild(n)},n.querySelector("#cancelFieldBtn").onclick=()=>document.body.removeChild(n),n.querySelector("#fieldType").onchange=function(){const e=["select_one","select_multiple"].includes(this.value);n.querySelector("#choicesRow").style.display=e?"block":"none",n.querySelector("#fieldChoices").required=e,n.querySelector("#calcRow").style.display="calculate"===this.value?"block":"none"},n.querySelector("#fieldForm").onsubmit=function(e){e.preventDefault();let l={name:this.fieldName.value,type:this.fieldType.value,required:this.fieldReq.checked,default:this.fieldDefault.value,constraint:this.fieldConstraint.value};["select_one","select_multiple"].includes(l.type)&&(l.choices=this.fieldChoices.value),"calculate"===l.type&&(l.calc=this.fieldCalc.value),null!==t?db.customPatientFields[t]=l:db.customPatientFields.push(l),saveDb(),document.body.removeChild(n),"function"==typeof refreshFields&&refreshFields()}}function showForm(e={}){const t=(new Date).toISOString().slice(0,10),n=document.getElementById("modalWrap");n.innerHTML=`\n      <div class="modal-content mx-auto">\n        <h5>${e.patientID?"Edit":"New"} Patient</h5>\n        <form id="pForm" class="mt-2">\n          <label class="form-label mb-0">Date of Registration</label>\n          <input  type="date" id="dor" class="form-control mb-2"\n                  value="${e.registrationDate||t}" max="${t}" required>\n\n          <label class="form-label mb-0">Date of Birth</label>\n          <input  type="date" id="dob" class="form-control" value="${e.dob||""}" max="${t}">\n          <small id="ageLive" class="text-muted mb-2 d-block"></small>\n\n          <input  id="name"  class="form-control mb-2" placeholder="Full Name" required value="${e.name||""}">\n\n          <select id="sex" class="form-select mb-2" required>\n            <option value="">Sex</option>\n            <option value="M"${"M"===e.sex?" selected":""}>Male</option>\n            <option value="F"${"F"===e.sex?" selected":""}>Female</option>\n            <option value="O"${"O"===e.sex?" selected":""}>Other</option>\n          </select>\n\n          <input id="phone" class="form-control mb-2" placeholder="Phone 024-xxx-xxxx" value="${e.phone||""}">\n          <input id="address" class="form-control mb-2" placeholder="Address" value="${e.address||""}">\n\n          <select id="idType" class="form-select mb-2">\n            <option value="">ID Type (optional)</option>\n            <option value="NIN"${"NIN"===e.idType?" selected":""}>National ID</option>\n            <option value="DL" ${"DL"===e.idType?" selected":""}>Driver's License</option>\n            <option value="VOT"${"VOT"===e.idType?" selected":""}>Voter's Card</option>\n          </select>\n          <input id="idNumber" class="form-control mb-3" placeholder="ID Number" value="${e.idNumber||""}">\n\n          ${(db.customPatientFields||[]).map(t=>renderCustomField(t,e)).join("")}\n\n          <div class="mb-3">\n            <button type="button" class="btn btn-sm btn-success" id="addFieldBtn"><i class="bi bi-plus"></i> Add Custom Field</button>\n            <ul class="list-group mt-2" id="customFieldList">\n              ${(db.customPatientFields||[]).map((e,t)=>renderFieldRow(e,t)).join("")}\n            </ul>\n          </div>\n\n          <div class="d-flex justify-content-between">\n            <button class="btn btn-primary">${e.patientID?"Save":"Add"}</button>\n            <button type="button" class="btn btn-secondary" id="cancelF">Cancel</button>\n          </div>\n        </form>\n      </div>`,n.className="active",n.onclick=e=>{e.target===n&&close()},document.getElementById("cancelF").onclick=close;const l=document.getElementById("pForm"),a=l.dob,i=l.querySelector("#ageLive"),o=()=>i.textContent=a.value?`Age: ${calculateAge(a.value)}`:"";a.addEventListener("input",o),o(),db.customPatientFields||(db.customPatientFields=[]),document.getElementById("addFieldBtn").onclick=()=>showFieldFormPatient(),l.onsubmit=t=>{t.preventDefault();const n=e.patientID?e:{};if(n.registrationDate=l.dor.value,n.dob=l.dob.value,n.name=l.name.value.trim(),n.sex=l.sex.value,n.phone=l.phone.value.trim(),n.address=l.address.value.trim(),n.idType=l.idType.value,n.idNumber=l.idNumber.value.trim(),n.age=n.dob?calculateAge(n.dob):"",n.customFields=n.customFields||{},(db.customPatientFields||[]).forEach(e=>{const t=document.getElementById(`custom_${e.name}`);t&&(n.customFields[e.name]=t.value)}),n.patientID||(n.patientID=generatePatientID()),e.patientID){const e=db.patients.findIndex(e=>e.patientID===n.patientID);-1!==e&&(db.patients[e]=n)}else db.patients.push(n);saveDb(),close(),"function"==typeof refresh&&refresh()},"function"==typeof attachFieldHandlers&&attachFieldHandlers()}export{showForm as showPatientRegistrationModal};
+/* patients.js – full version 2025-05 */
+
+import { db, saveDb }               from './db.js';
+import { generatePatientID }        from './idUtils.js';
+import { themePicker }              from './app.js';
+import { calculateAge, formatDate } from './utils.js';
+import { createVisitForm }          from './visits.js';
+import { renderServiceEntryForm }   from './services.js';
+import { renderAppointmentForm }    from './appointments.js';
+
+// Supported data types (XLSForm style)
+const fieldTypes = [
+  { value: "text", label: "Text" },
+  { value: "integer", label: "Integer" },
+  { value: "decimal", label: "Decimal" },
+  { value: "select_one", label: "Single Select (select_one)" },
+  { value: "select_multiple", label: "Multiple Select (select_multiple)" },
+  { value: "date", label: "Date" },
+  { value: "time", label: "Time" },
+  { value: "datetime", label: "DateTime" },
+  { value: "note", label: "Note/Label" },
+  { value: "calculate", label: "Calculation" },
+  { value: "image", label: "Image" },
+  { value: "audio", label: "Audio" },
+  { value: "video", label: "Video" },
+  { value: "file", label: "File Upload" },
+  { value: "barcode", label: "Barcode" },
+  { value: "qr_code", label: "QR Code" },
+  { value: "geopoint", label: "Geopoint" },
+  { value: "geotrace", label: "Geotrace" },
+  { value: "geoshape", label: "Geoshape" }
+];
+
+
+// --- Top-level helpers for table and custom fields ---
+function refresh(filter={}) {
+  let rows = db.patients || [];
+  if (filter.id)    rows = rows.filter(r=>r.patientID?.includes(filter.id));
+  if (filter.name)  rows = rows.filter(r=>r.name?.toLowerCase().includes(filter.name.toLowerCase()));
+  if (filter.phone) rows = rows.filter(r=>r.phone?.includes(filter.phone));
+
+  document.getElementById("listBody").innerHTML = rows.length === 0
+    ? `<tr><td colspan="8" class="text-center text-muted">No patients found.</td></tr>`
+    : rows.map((p,i)=>`
+    <tr>
+      <td>${p.patientID||''}</td>
+      <td>${p.name||''}</td>
+      <td>${formatDate(p.registrationDate)||''}</td>
+      <td>${formatDate(p.dob)||''}</td>
+      <td>${p.age??''}</td>
+      <td>${p.sex||''}</td>
+      <td>${p.phone||''}</td>
+      <td>
+        <button class="btn btn-sm btn-primary me-1" data-i="${i}" data-act="view" title="View/Edit"><i class="bi bi-eye"></i></button>
+        <button class="btn btn-sm btn-danger me-1" data-i="${i}" data-act="del" title="Delete"><i class="bi bi-trash"></i></button>
+        <button class="btn btn-sm btn-outline-success me-1" data-i="${i}" data-act="visit" title="Log Visit"><i class="bi bi-journal-plus"></i></button>
+        <button class="btn btn-sm btn-outline-secondary me-1" data-i="${i}" data-act="service" title="Service Entry"><i class="bi bi-ui-checks-grid"></i></button>
+        <button class="btn btn-sm btn-outline-primary" data-i="${i}" data-act="appoint" title="Book Appointment"><i class="bi bi-calendar-plus"></i></button>
+      </td>
+    </tr>
+    <tr class="visit-form-row d-none" data-form-i="${i}">
+      <td colspan="8"><div class="visit-form-container"></div></td>
+    </tr>`).join("");
+
+  document.querySelectorAll("[data-act=view]").forEach(b => b.onclick = () => showForm(rows[b.dataset.i]));
+  document.querySelectorAll("[data-act=del]").forEach(b => b.onclick = () => {
+    if (confirm("Delete this patient?")) {
+      db.patients.splice(b.dataset.i,1); saveDb(); refresh();
+    }
+  });
+  document.querySelectorAll("[data-act=visit]").forEach(b => b.onclick = () => {
+    const i = b.dataset.i;
+    const patient = rows[i];
+    const formRow = document.querySelector(`.visit-form-row[data-form-i="${i}"]`);
+    const container = formRow.querySelector(".visit-form-container");
+    // Toggle visibility
+    const isVisible = !formRow.classList.contains("d-none");
+    document.querySelectorAll(".visit-form-row").forEach(r => r.classList.add("d-none"));
+    if (!isVisible) {
+      container.innerHTML = "";
+      container.appendChild(createVisitForm(patient, () => {
+        setTimeout(() => formRow.classList.add("d-none"), 2000);
+      }));
+      formRow.classList.remove("d-none");
+    }
+  });
+  document.querySelectorAll("[data-act=service]").forEach(b => b.onclick = () => {
+    const i = b.dataset.i;
+    const patient = rows[i];
+    renderServiceEntryForm(patient, db.registers || []);
+  });
+  document.querySelectorAll("[data-act=appoint]").forEach(b => b.onclick = () => {
+    const i = b.dataset.i;
+    const patient = rows[i];
+    renderAppointmentForm(patient);
+  });
+}
+
+function attachFieldHandlers() {
+  document.querySelectorAll(".editFieldBtn").forEach(btn => btn.onclick = () => showFieldFormPatient(db.customPatientFields[btn.dataset.fidx], btn.dataset.fidx));
+  document.querySelectorAll(".deleteFieldBtn").forEach(btn => btn.onclick = () => {
+    if (confirm("Delete this field? Data already captured for this field will be kept in old records.")) {
+      db.customPatientFields.splice(btn.dataset.fidx,1); 
+      saveDb();
+      refreshFields();
+    }
+  });
+  document.querySelectorAll(".moveUpBtn").forEach(btn => btn.onclick = () => {
+    const i = +btn.dataset.fidx;
+    if (i > 0) {
+      [db.customPatientFields[i-1], db.customPatientFields[i]] = [db.customPatientFields[i], db.customPatientFields[i-1]];
+      saveDb();
+      refreshFields();
+    }
+  });
+  document.querySelectorAll(".moveDownBtn").forEach(btn => btn.onclick = () => {
+    const i = +btn.dataset.fidx;
+    if (i < db.customPatientFields.length-1) {
+      [db.customPatientFields[i], db.customPatientFields[i+1]] = [db.customPatientFields[i+1], db.customPatientFields[i]];
+      saveDb();
+      refreshFields();
+    }
+  });
+}
+
+function refreshFields() {
+  document.querySelector("#customFieldList").innerHTML = (db.customPatientFields||[]).map((f,i) => renderFieldRow(f,i)).join("");
+  attachFieldHandlers();
+  // Attach change handlers for multi-select custom fields
+  (db.customPatientFields||[]).forEach(field => {
+    if (field.type === 'select_multiple') {
+      const checkboxes = document.querySelectorAll(`input[id^="custom_${field.name}_"]`);
+      const hiddenInput = document.getElementById(`custom_${field.name}`);
+      if (checkboxes.length > 0 && hiddenInput) {
+        checkboxes.forEach(cb => {
+          cb.addEventListener('change', () => {
+            const checked = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+            hiddenInput.value = checked.join(', ');
+          });
+        });
+      }
+    }
+  });
+}
+
+// --- Main entry ---
+export function renderPatientList(root) {
+  root.innerHTML = `
+    <div class="container my-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <h4><i class="bi bi-people"></i> Patients</h4>
+        ${themePicker}
+      </div>
+
+      <!-- search -->
+      <form id="searchForm" class="row g-2 mb-3">
+        <div class="col-md-2"><input name="id"    class="form-control" placeholder="ID"></div>
+        <div class="col-md-3"><input name="name"  class="form-control" placeholder="Name"></div>
+        <div class="col-md-2"><input name="phone" class="form-control" placeholder="Phone 024-xxx-xxxx"></div>
+        <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search"></i> Search</button></div>
+        <div class="col-md-3 text-end">
+          <button class="btn btn-success w-100" type="button" id="addBtn"><i class="bi bi-person-plus"></i> New Patient</button>
+        </div>
+      </form>
+
+      <!-- list -->
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th><th>Name</th><th>Reg&nbsp;Date</th><th>DOB</th><th>Age</th>
+              <th>Sex</th><th>Phone</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="listBody"></tbody>
+        </table>
+      </div>
+
+      <a href="#admin-dashboard" class="btn btn-link mt-2"><i class="bi bi-arrow-left"></i> Back</a>
+      <div id="modalWrap"></div>
+    </div>
+  `;
+  refresh();
+  document.getElementById("addBtn").onclick = () => showForm();
+  document.getElementById("searchForm").onsubmit = e => {
+    e.preventDefault();
+    refresh(Object.fromEntries(new FormData(e.target)));
+  };
+}
+
+  function close() {
+    document.getElementById("modalWrap").className = "";
+    document.getElementById("modalWrap").innerHTML = "";
+  }
+
+  function renderCustomField(field, existing) {
+    // Render a form input for a custom field based on its type
+    const value = (existing.customFields && existing.customFields[field.name]) || '';
+    const id = `custom_${field.name}`;
+    switch (field.type) {
+      case 'text':
+        return `<input id="${id}" class="form-control mb-2" placeholder="${field.label || field.name}" value="${value}">`;
+      case 'integer':
+        return `<input id="${id}" type="number" step="1" class="form-control mb-2" placeholder="${field.label || field.name}" value="${value}">`;
+      case 'decimal':
+        return `<input id="${id}" type="number" step="any" class="form-control mb-2" placeholder="${field.label || field.name}" value="${value}">`;
+      case 'date':
+        return `<input id="${id}" type="date" class="form-control mb-2" value="${value}">`;
+      case 'select_one': {
+        // Ensure choices is an array
+        let choices = field.choices;
+        if (typeof choices === 'string') choices = choices.split(',').map(s => s.trim()).filter(Boolean);
+        if (!Array.isArray(choices)) choices = [];
+        return `<select id="${id}" class="form-select mb-2">` +
+          `<option value="">${field.label || field.name}</option>` +
+          choices.map(opt => `<option value="${opt}"${value===opt?' selected':''}>${opt}</option>`).join('') +
+          `</select>`;
+      }
+      case 'select_multiple': {
+        let choices = field.choices;
+        if (typeof choices === 'string') choices = choices.split(',').map(s => s.trim()).filter(Boolean);
+        if (!Array.isArray(choices)) choices = [];
+        // Render checkboxes and a hidden input to store comma-separated values
+        return `<div class="mb-2">` +
+          choices.map((opt, i) => {
+            const checked = value.split(',').map(v=>v.trim()).includes(opt) ? 'checked' : '';
+            return `<div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="${id}_${i}" value="${opt}" ${checked}>
+              <label class="form-check-label" for="${id}_${i}">${opt}</label>
+            </div>`;
+          }).join('') +
+          `<input type="hidden" id="${id}" value="${value}"></div>`;
+      }
+      case 'note':
+        return `<div class="alert alert-secondary mb-2">${field.label || field.name}</div>`;
+      default:
+        return `<input id="${id}" class="form-control mb-2" placeholder="${field.label || field.name}" value="${value}">`;
+    }
+  }
+
+  function renderFieldRow(field, idx) {
+    // Render a row for the custom field in the custom field list
+    return `<li class="list-group-item d-flex justify-content-between align-items-center">
+      <span><b>${field.label || field.name}</b> <small class="text-muted">(${field.type})</small></span>
+      <span>
+        <button type="button" class="btn btn-sm btn-outline-primary editFieldBtn" data-fidx="${idx}"><i class="bi bi-pencil"></i></button>
+        <button type="button" class="btn btn-sm btn-outline-danger deleteFieldBtn" data-fidx="${idx}"><i class="bi bi-trash"></i></button>
+        <button type="button" class="btn btn-sm btn-outline-secondary moveUpBtn" data-fidx="${idx}"><i class="bi bi-arrow-up"></i></button>
+        <button type="button" class="btn btn-sm btn-outline-secondary moveDownBtn" data-fidx="${idx}"><i class="bi bi-arrow-down"></i></button>
+      </span>
+    </li>`;
+  }
+
+  function showFieldFormPatient(field = {name:"", type:"text", required:false}, fidx=null) {
+    const fModal = document.createElement("div");
+    fModal.className = "modal-overlay";
+    fModal.innerHTML = `
+      <div class="modal-content mx-auto" style="max-width:400px;">
+        <h6>${fidx!==null ? "Edit Field" : "Add Field"}</h6>
+        <form id="fieldForm">
+          <div class="mb-2"><input class="form-control" id="fieldName" placeholder="Field Name" required value="${field.name||""}"></div>
+          <div class="mb-2">
+            <select class="form-select" id="fieldType" required>
+              ${fieldTypes.map(t=>`<option value="${t.value}"${field.type===t.value?" selected":''}>${t.label}</option>`).join("")}
+            </select>
+          </div>
+          <div class="mb-2 form-check">
+            <input class="form-check-input" type="checkbox" id="fieldReq" ${field.required?"checked":''}>
+            <label class="form-check-label" for="fieldReq">Required</label>
+          </div>
+          <div class="mb-2"><input class="form-control" id="fieldDefault" placeholder="Default Value" value="${field.default||""}"></div>
+          <div class="mb-2"><input class="form-control" id="fieldConstraint" placeholder="Constraint/Validation (e.g. min=0,max=100)" value="${field.constraint||""}"></div>
+          <div class="mb-2" id="choicesRow" style="display:${['select_one','select_multiple'].includes(field.type)?'block':'none'}">
+            <input class="form-control" id="fieldChoices" placeholder="Choices (comma-separated, e.g. Yes,No,Unknown)" value="${field.choices||''}" ${['select_one','select_multiple'].includes(field.type)?'required':''}>
+          </div>
+          <div class="mb-2" id="calcRow" style="display:${field.type==='calculate'?'block':'none'}">
+            <input class="form-control" id="fieldCalc" placeholder="Calculation Formula (e.g. today() - dob)" value="${field.calc||''}">
+          </div>
+          <div class="mb-2 d-flex justify-content-between">
+            <button class="btn btn-primary">${fidx!==null?"Save":"Add"}</button>
+            <button type="button" class="btn btn-secondary" id="cancelFieldBtn">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(fModal);
+    fModal.onclick = e => { if (e.target === fModal) document.body.removeChild(fModal); };
+    fModal.querySelector("#cancelFieldBtn").onclick = () => document.body.removeChild(fModal);
+
+    // Show/hide choices/calculation row
+    fModal.querySelector("#fieldType").onchange = function() {
+      const showChoices = ['select_one','select_multiple'].includes(this.value);
+      fModal.querySelector("#choicesRow").style.display = showChoices ? 'block' : 'none';
+      fModal.querySelector("#fieldChoices").required = showChoices;
+      fModal.querySelector("#calcRow").style.display = this.value==='calculate'?'block':'none';
+    };
+
+    fModal.querySelector("#fieldForm").onsubmit = function(e) {
+      e.preventDefault();
+      let updated = {
+        name: this.fieldName.value,
+        type: this.fieldType.value,
+        required: this.fieldReq.checked,
+        default: this.fieldDefault.value,
+        constraint: this.fieldConstraint.value,
+      };
+      if(['select_one','select_multiple'].includes(updated.type))
+        updated.choices = this.fieldChoices.value;
+      if(updated.type==='calculate')
+        updated.calc = this.fieldCalc.value;
+      if(fidx!==null) db.customPatientFields[fidx] = updated;
+      else db.customPatientFields.push(updated);
+      saveDb();
+      document.body.removeChild(fModal);
+      if (typeof refreshFields === 'function') refreshFields();
+    };
+  }
+
+  function showForm(existing={}) {
+    const today = new Date().toISOString().slice(0,10);
+    const wrap  = document.getElementById("modalWrap");
+    wrap.innerHTML = `
+      <div class="modal-content mx-auto">
+        <h5>${existing.patientID?"Edit":"New"} Patient</h5>
+        <form id="pForm" class="mt-2">
+          <label class="form-label mb-0">Date of Registration</label>
+          <input  type="date" id="dor" class="form-control mb-2"
+                  value="${existing.registrationDate||today}" max="${today}" required>
+
+          <label class="form-label mb-0">Date of Birth</label>
+          <input  type="date" id="dob" class="form-control" value="${existing.dob||''}" max="${today}">
+          <small id="ageLive" class="text-muted mb-2 d-block"></small>
+
+          <input  id="name"  class="form-control mb-2" placeholder="Full Name" required value="${existing.name||''}">
+
+          <select id="sex" class="form-select mb-2" required>
+            <option value="">Sex</option>
+            <option value="M"${existing.sex==="M"?" selected":""}>Male</option>
+            <option value="F"${existing.sex==="F"?" selected":""}>Female</option>
+            <option value="O"${existing.sex==="O"?" selected":""}>Other</option>
+          </select>
+
+          <input id="phone" class="form-control mb-2" placeholder="Phone 024-xxx-xxxx" value="${existing.phone||''}">
+          <input id="address" class="form-control mb-2" placeholder="Address" value="${existing.address||''}">
+
+          <select id="idType" class="form-select mb-2">
+            <option value="">ID Type (optional)</option>
+            <option value="NIN"${existing.idType==="NIN"?" selected":""}>National ID</option>
+            <option value="DL" ${existing.idType==="DL" ?" selected":""}>Driver's License</option>
+            <option value="VOT"${existing.idType==="VOT"?" selected":""}>Voter's Card</option>
+          </select>
+          <input id="idNumber" class="form-control mb-3" placeholder="ID Number" value="${existing.idNumber||''}">
+
+          ${ (db.customPatientFields||[]).map(f => renderCustomField(f, existing)).join('')}
+
+          <div class="mb-3">
+            <button type="button" class="btn btn-sm btn-success" id="addFieldBtn"><i class="bi bi-plus"></i> Add Custom Field</button>
+            <ul class="list-group mt-2" id="customFieldList">
+              ${(db.customPatientFields||[]).map((f,i) => renderFieldRow(f,i)).join("")}
+            </ul>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <button class="btn btn-primary">${existing.patientID?"Save":"Add"}</button>
+            <button type="button" class="btn btn-secondary" id="cancelF">Cancel</button>
+          </div>
+        </form>
+      </div>`;
+    wrap.className="active";
+    wrap.onclick=e=>{ if(e.target===wrap) close(); };
+    document.getElementById("cancelF").onclick=close;
+
+    const pForm = document.getElementById("pForm");
+    const dobField = pForm.dob; const ageLabel = pForm.querySelector("#ageLive");
+    const updateAge = () => ageLabel.textContent = dobField.value ? `Age: ${calculateAge(dobField.value)}` : "";
+    dobField.addEventListener("input", updateAge); updateAge();
+
+    // Initialize custom patient fields if not exists
+    if (!db.customPatientFields) db.customPatientFields = [];
+
+    // Add field button handler
+    document.getElementById("addFieldBtn").onclick = () => showFieldFormPatient();
+
+    // Save handler for add/edit patient
+    pForm.onsubmit = e => {
+      e.preventDefault();
+      const patient = existing.patientID ? existing : {};
+      patient.registrationDate = pForm.dor.value;
+      patient.dob = pForm.dob.value;
+      patient.name = pForm.name.value.trim();
+      patient.sex = pForm.sex.value;
+      patient.phone = pForm.phone.value.trim();
+      patient.address = pForm.address.value.trim();
+      patient.idType = pForm.idType.value;
+      patient.idNumber = pForm.idNumber.value.trim();
+      // Calculate age
+      patient.age = patient.dob ? calculateAge(patient.dob) : '';
+      // Custom fields
+      patient.customFields = patient.customFields || {};
+      (db.customPatientFields||[]).forEach(field => {
+        const el = document.getElementById(`custom_${field.name}`);
+        if (el) patient.customFields[field.name] = el.value;
+      });
+      // Assign ID if new
+      if (!patient.patientID) patient.patientID = generatePatientID();
+      // Add or update in db
+      if (!existing.patientID) {
+        db.patients.push(patient);
+      } else {
+        const idx = db.patients.findIndex(p => p.patientID === patient.patientID);
+        if (idx !== -1) db.patients[idx] = patient;
+      }
+      saveDb();
+      close();
+      if (typeof refresh === 'function') refresh();
+    };
+
+    // Edit, reorder, delete fields
+    if (typeof attachFieldHandlers === 'function') attachFieldHandlers();
+
+    function refreshFields() {
+      document.querySelector("#customFieldList").innerHTML = (db.customPatientFields||[]).map((f,i) => renderFieldRow(f,i)).join("");
+      if (typeof attachFieldHandlers === 'function') attachFieldHandlers();
+    }
+}
+
+export { showForm as showPatientRegistrationModal };
