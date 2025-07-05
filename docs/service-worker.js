@@ -51,9 +51,21 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
   event.respondWith(
-    caches.match(event.request).then(response =>
-      response || fetch(event.request)
-    ).catch(() => caches.match("/offline.html"))
+    caches.match(event.request).then(response => {
+      // Try cache first
+      if (response) return response;
+      // Try network and cache the result for next time
+      return fetch(event.request).then(networkResponse => {
+        // Only cache successful, basic (same-origin) responses
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return networkResponse;
+      });
+    }).catch(() => caches.match("/offline.html"))
   );
 });
 
