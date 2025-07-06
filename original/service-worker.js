@@ -8,6 +8,7 @@ const urlsToPreCache = [
   "/export.js", "/backup.js"
 ];
 
+
 // Install: Pre-cache static assets
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -212,11 +213,21 @@ self.addEventListener("message", event => {
   }
 });
 
+// Notify clients when a new service worker is activated (update available)
+self.addEventListener("activate", event => {
+  event.waitUntil(
+    (async () => {
+      broadcastMessage({ type: "updateReady" });
+    })()
+  );
+  self.clients.claim();
+});
+
 // App install prompt (handled in app.js or UI)
 self.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   self.installPrompt = e;
-  // Notify clients install prompt is available
+  // Clients can trigger prompt by listening for this message
   self.clients.matchAll().then(clients => {
     clients.forEach(client =>
       client.postMessage({ type: "installPromptAvailable" })
@@ -230,16 +241,6 @@ function broadcastMessage(message) {
     clients.forEach(client => client.postMessage(message));
   });
 }
-
-// Notify clients when a new service worker is activated (update available)
-self.addEventListener("activate", event => {
-  event.waitUntil(
-    (async () => {
-      broadcastMessage({ type: "updateReady" });
-    })()
-  );
-  self.clients.claim();
-});
 
 // Optional: Notify clients when going offline (relies on page events)
 self.addEventListener("sync", () => {
