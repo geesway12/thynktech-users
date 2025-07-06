@@ -1,6 +1,4 @@
-jspm_packages/
-
-# System and OS files
+# System Files
 .DS_Store
 .DS_Store?
 ._*
@@ -9,12 +7,6 @@ jspm_packages/
 ehthumbs.db
 Thumbs.db
 Desktop.ini
-
-# Ignore everything except docs and .gitignore
-/*
-!docs/
-!docs/**
-!.gitignore
 
 # Logs
 *.log
