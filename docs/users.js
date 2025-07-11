@@ -36,7 +36,56 @@ export function renderUserDashboard(container) {
       <img src="${facility.image || 'logo.png'}" height="36" class="me-2" style="border-radius:8px;">
       <b>${facility.name || ''}</b>
       <span class="ms-2 text-muted">${facility.region || ''} / ${facility.district || ''} / ${facility.community || ''}</span>
-      ${user.username ? `<span class='ms-auto'><a href="#profile" id="userProfileLinkTop" class="text-decoration-none text-dark"><i class='bi bi-person-circle'></i> <b>${user.username}</b></a></span>` : ''}
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <div class="theme-picker">
+          <button class="btn btn-outline-secondary btn-sm" id="themePickerBtn" title="Change Theme">
+            <i class="bi bi-palette me-1"></i><span class="d-none d-md-inline">Theme</span>
+          </button>
+          <div class="theme-dropdown" id="themeDropdown">
+            <div class="theme-option" data-theme="blue">
+              <span class="theme-swatch" style="background: #1976d2;"></span>
+              Ocean Blue
+            </div>
+            <div class="theme-option" data-theme="green">
+              <span class="theme-swatch" style="background: #2e7d32;"></span>
+              Forest Green
+            </div>
+            <div class="theme-option" data-theme="purple">
+              <span class="theme-swatch" style="background: #7b1fa2;"></span>
+              Royal Purple
+            </div>
+            <div class="theme-option" data-theme="orange">
+              <span class="theme-swatch" style="background: #f57c00;"></span>
+              Warm Orange
+            </div>
+            <div class="theme-option" data-theme="teal">
+              <span class="theme-swatch" style="background: #00695c;"></span>
+              Deep Teal
+            </div>
+            <div class="theme-option" data-theme="gold">
+              <span class="theme-swatch" style="background: #ff8f00;"></span>
+              Golden Yellow
+            </div>
+            <div class="theme-option" data-theme="gray">
+              <span class="theme-swatch" style="background: #424242;"></span>
+              Neutral Gray
+            </div>
+            <div class="theme-option" data-theme="mint">
+              <span class="theme-swatch" style="background: #00796b;"></span>
+              Fresh Mint
+            </div>
+            <div class="theme-option" data-theme="coral">
+              <span class="theme-swatch" style="background: #d84315;"></span>
+              Coral Red
+            </div>
+            <div class="theme-option" data-theme="dark">
+              <span class="theme-swatch" style="background: #121212; border-color: #666;"></span>
+              Dark Mode
+            </div>
+          </div>
+        </div>
+        ${user.username ? `<a href="#profile" id="userProfileLinkTop" class="text-decoration-none text-dark"><i class='bi bi-person-circle'></i> <b>${user.username}</b></a>` : ''}
+      </div>
     </div>
   `;
 
@@ -111,53 +160,6 @@ export function renderUserDashboard(container) {
             </div>
             <div id="dashboardDataTools"></div>
             <div class="mt-auto d-flex justify-content-between align-items-center">
-              <div class="theme-picker">
-                <button class="btn btn-outline-secondary btn-sm" id="themePickerBtn" title="Change Theme">
-                  <i class="bi bi-palette me-1"></i><span class="d-none d-md-inline">Theme</span>
-                </button>
-                <div class="theme-dropdown" id="themeDropdown">
-                  <div class="theme-option" data-theme="blue">
-                    <span class="theme-swatch" style="background: #1976d2;"></span>
-                    Ocean Blue
-                  </div>
-                  <div class="theme-option" data-theme="green">
-                    <span class="theme-swatch" style="background: #2e7d32;"></span>
-                    Forest Green
-                  </div>
-                  <div class="theme-option" data-theme="purple">
-                    <span class="theme-swatch" style="background: #7b1fa2;"></span>
-                    Royal Purple
-                  </div>
-                  <div class="theme-option" data-theme="orange">
-                    <span class="theme-swatch" style="background: #f57c00;"></span>
-                    Warm Orange
-                  </div>
-                  <div class="theme-option" data-theme="teal">
-                    <span class="theme-swatch" style="background: #00695c;"></span>
-                    Deep Teal
-                  </div>
-                  <div class="theme-option" data-theme="gold">
-                    <span class="theme-swatch" style="background: #ff8f00;"></span>
-                    Golden Yellow
-                  </div>
-                  <div class="theme-option" data-theme="gray">
-                    <span class="theme-swatch" style="background: #424242;"></span>
-                    Neutral Gray
-                  </div>
-                  <div class="theme-option" data-theme="mint">
-                    <span class="theme-swatch" style="background: #00796b;"></span>
-                    Fresh Mint
-                  </div>
-                  <div class="theme-option" data-theme="coral">
-                    <span class="theme-swatch" style="background: #d84315;"></span>
-                    Coral Red
-                  </div>
-                  <div class="theme-option" data-theme="dark">
-                    <span class="theme-swatch" style="background: #121212; border-color: #666;"></span>
-                    Dark Mode
-                  </div>
-                </div>
-              </div>
               <a href="#profile" id="userProfileLink" class="btn btn-outline-secondary"><i class="bi bi-person-gear"></i> Profile</a>
             </div>
           </div>
@@ -580,54 +582,56 @@ export function renderUserDashboard(container) {
 
 
 
-  const themePickerBtn = container.querySelector('#themePickerBtn');
-  const themeDropdown = container.querySelector('#themeDropdown');
-  
-  if (themePickerBtn && themeDropdown) {
+  setTimeout(() => {
+    const themePickerBtn = container.querySelector('#themePickerBtn');
+    const themeDropdown = container.querySelector('#themeDropdown');
+    
+    if (themePickerBtn && themeDropdown) {
 
-    const savedTheme = localStorage.getItem('userTheme') || 'blue';
-    applyTheme(savedTheme);
-    updateThemePickerUI(savedTheme);
+      const savedTheme = localStorage.getItem('userTheme') || 'blue';
+      applyTheme(savedTheme);
+      updateThemePickerUI(savedTheme);
 
-    themePickerBtn.onclick = (e) => {
-      e.stopPropagation();
-      const isVisible = themeDropdown.style.display === 'block';
-      themeDropdown.style.display = isVisible ? 'none' : 'block';
-    };
-
-    themeDropdown.querySelectorAll('.theme-option').forEach(option => {
-      option.onclick = (e) => {
+      themePickerBtn.onclick = (e) => {
         e.stopPropagation();
-        const theme = option.dataset.theme;
-        applyTheme(theme);
-        localStorage.setItem('userTheme', theme);
-        updateThemePickerUI(theme);
-        themeDropdown.style.display = 'none';
+        const isVisible = themeDropdown.style.display === 'block';
+        themeDropdown.style.display = isVisible ? 'none' : 'block';
       };
-    });
 
-    document.addEventListener('click', () => {
-      themeDropdown.style.display = 'none';
-    });
-  }
+      themeDropdown.querySelectorAll('.theme-option').forEach(option => {
+        option.onclick = (e) => {
+          e.stopPropagation();
+          const theme = option.dataset.theme;
+          applyTheme(theme);
+          localStorage.setItem('userTheme', theme);
+          updateThemePickerUI(theme);
+          themeDropdown.style.display = 'none';
+        };
+      });
 
-  function applyTheme(theme) {
+      document.addEventListener('click', () => {
+        themeDropdown.style.display = 'none';
+      });
+    }
 
-    document.body.classList.remove(
-      'theme-blue', 'theme-green', 'theme-purple', 'theme-orange', 
-      'theme-teal', 'theme-gold', 'theme-gray', 'theme-dark', 
-      'theme-mint', 'theme-coral'
-    );
+    function applyTheme(theme) {
 
-    document.body.classList.add(`theme-${theme}`);
-  }
-  
-  function updateThemePickerUI(activeTheme) {
-    const themeOptions = container.querySelectorAll('.theme-option');
-    themeOptions.forEach(option => {
-      option.classList.toggle('active', option.dataset.theme === activeTheme);
-    });
-  }
+      document.body.classList.remove(
+        'theme-blue', 'theme-green', 'theme-purple', 'theme-orange', 
+        'theme-teal', 'theme-gold', 'theme-gray', 'theme-dark', 
+        'theme-mint', 'theme-coral'
+      );
+
+      document.body.classList.add(`theme-${theme}`);
+    }
+    
+    function updateThemePickerUI(activeTheme) {
+      const themeOptions = container.querySelectorAll('.theme-option');
+      themeOptions.forEach(option => {
+        option.classList.toggle('active', option.dataset.theme === activeTheme);
+      });
+    }
+  }, 100);
 } // <-- End renderUserDashboard
 
 function exportAsExcel(data, filename) {
