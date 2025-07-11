@@ -48,6 +48,8 @@ export function renderUserDashboard(container) {
 
   container.innerHTML = `
   <style>
+    .apt-day-label { font-weight: bold; color: #2a2a2a; margin-bottom: 0.5rem; }
+    .apt-day-list { margin-bottom: 1.2em; }
     @media (min-width: 768px) {
       .dashboard-row-equal {
         display: flex;
@@ -123,7 +125,7 @@ export function renderUserDashboard(container) {
       <div class="col-12 col-md-6 d-flex">
         <div class="card shadow mb-4 flex-fill">
           <div class="card-body d-flex flex-column">
-            <h5><i class="bi bi-calendar-check"></i> Upcoming Appointments Today</h5>
+            <h5><i class="bi bi-calendar-event"></i> Upcoming Appointments (This Week)</h5>
             <div id="upcomingAppointments" class="mb-3 flex-grow-1"></div>
             <div id="shareMsg" class="small mt-2 text-muted"></div>
             <div class="text-end mt-3">
@@ -196,24 +198,70 @@ export function renderUserDashboard(container) {
 
   const upcomingDiv = container.querySelector('#upcomingAppointments');
   if (upcomingDiv) {
-    const today = new Date().toISOString().slice(0, 10);
-    const appointments = (db.appointments || [])
-      .filter(a => a.appointmentDate === today && a.status === "Scheduled")
-      .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
-      .slice(0, 5);
-    if (appointments.length === 0) {
-      upcomingDiv.innerHTML = '<div class="text-muted small">No appointments due today.</div>';
-    } else {
-      upcomingDiv.innerHTML = '<ul class="list-group">' +
-        appointments.map(a => {
-          const patient = (db.patients || []).find(p => p.patientID === a.patientID);
-          return `<li class="list-group-item d-flex flex-column">
-            <span><i class="bi bi-person-circle me-2"></i>${patient ? patient.name : a.patientID}</span>
-            <span class="small text-muted"><i class="bi bi-activity"></i> ${a.serviceType || "-"}</span>
-            <span class="small"><i class="bi bi-clock"></i> ${a.appointmentDate}</span>
-          </li>`;
-        }).join('') + '</ul>';
+    const today = new Date();
+
+    const weekMap = {};
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + d);
+      const dateStr = date.toISOString().slice(0, 10);
+      weekMap[dateStr] = [];
     }
+    (db.appointments || []).forEach(apt => {
+      if (!apt.appointmentDate) return;
+      if (weekMap[apt.appointmentDate] !== undefined) {
+        weekMap[apt.appointmentDate].push(apt);
+      }
+    });
+
+    let html = '';
+    Object.keys(weekMap).forEach(dateStr => {
+      const dateObj = new Date(dateStr);
+      const dayLabel = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+      const apts = weekMap[dateStr];
+      html += `<div class="apt-day-list">
+        <div class="apt-day-label">${dayLabel}</div>`;
+      if (apts.length) {
+        html += '<ul class="list-group list-group-flush">' +
+          apts.map(apt => {
+            let statusBadge = `<span class="badge bg-${apt.status === 'Completed' ? 'success' : 'primary'} ms-2">${apt.status}</span>`;
+
+            const aptDate = new Date(apt.appointmentDate);
+            const now = new Date();
+
+            aptDate.setHours(0,0,0,0);
+            now.setHours(0,0,0,0);
+            const daysDiff = Math.floor((aptDate - now) / (1000 * 60 * 60 * 24));
+            let indicatorColor = '';
+            let indicatorText = '';
+            if (daysDiff < 0) {
+              indicatorColor = 'danger';
+              indicatorText = 'Missed';
+            } else if (daysDiff < 3) {
+              indicatorColor = 'warning';
+              indicatorText = daysDiff === 0 ? 'Today' : `${daysDiff} day${daysDiff === 1 ? '' : 's'}`;
+            } else {
+              indicatorColor = 'success';
+              indicatorText = `${daysDiff} days`;
+            }
+            return `<li class="list-group-item d-flex align-items-center justify-content-between py-2">
+              <div>
+                <i class="bi bi-person-circle me-1"></i>
+                <b>${apt.patientName || apt.patientID}</b>
+                <span class="text-muted small ms-2">${apt.serviceType || ''}</span>
+              </div>
+              <div>
+                <span class="badge bg-${indicatorColor} me-2">${indicatorText}</span>
+                ${statusBadge}
+              </div>
+            </li>`;
+          }).join('') + '</ul>';
+      } else {
+        html += '<div class="text-muted small">No appointments.</div>';
+      }
+      html += '</div>';
+    });
+    upcomingDiv.innerHTML = html;
   }
 
   if (isPasswordExpired(user)) {
