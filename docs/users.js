@@ -81,8 +81,37 @@ export function renderUserDashboard(container) {
               ${user.canVisitLog ? `<a href="#visit-log" class="list-group-item list-group-item-action"><i class="bi bi-journal-medical me-2"></i>Visit Logging</a>` : ""}
               <a href="#appointments" class="list-group-item list-group-item-action" id="appointmentsLink"><i class="bi bi-calendar-event me-2"></i>Appointments</a>
               <a href="#reports" class="list-group-item list-group-item-action"><i class="bi bi-bar-chart me-2"></i>Reports</a>
-              <a href="#export-backup" class="list-group-item list-group-item-action"><i class="bi bi-cloud-arrow-down me-2"></i>Export/Backup</a>
-            <!-- Import Setup button removed from dashboard -->
+            </div>
+            
+            <!-- Export & Backup Quick Actions -->
+            <div class="border-top pt-3">
+              <h6 class="text-muted mb-2"><i class="bi bi-cloud-arrow-down me-1"></i> Export & Backup</h6>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <button class="btn btn-outline-primary btn-sm w-100" id="multiExportBtn">
+                    <i class="bi bi-download me-1"></i>Export JSON
+                  </button>
+                </div>
+                <div class="col-6">
+                  <button class="btn btn-outline-success btn-sm w-100" id="csvExportBtn">
+                    <i class="bi bi-file-earmark-csv me-1"></i>Export CSV
+                  </button>
+                </div>
+              </div>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <button class="btn btn-outline-secondary btn-sm w-100" id="backupBtn">
+                    <i class="bi bi-shield-lock me-1"></i>Backup
+                  </button>
+                </div>
+                <div class="col-6">
+                  <button class="btn btn-outline-warning btn-sm w-100" onclick="document.getElementById('restoreFile').click()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Restore
+                  </button>
+                  <input type="file" id="restoreFile" accept=".json" style="display:none;">
+                </div>
+              </div>
+              <div id="backupMsg" class="mt-2"></div>
             </div>
             <div id="dashboardDataTools"></div>
             <div class="mt-auto text-end">
@@ -104,6 +133,63 @@ export function renderUserDashboard(container) {
         </div>
       </div>
     </div>
+    
+    <!-- Multi-Select Export Modal -->
+    <div id="multiExportModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+      <div class="modal-content mx-auto mt-5" style="max-width:500px; background:white; border-radius:8px; padding:20px;">
+        <h5><i class="bi bi-download me-2"></i>Export Data (JSON)</h5>
+        <p class="text-muted small">Select data types to export for sharing with another device:</p>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="exportPatients" checked>
+          <label class="form-check-label" for="exportPatients">Patients (${(db.patients || []).length} records)</label>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="exportVisits" checked>
+          <label class="form-check-label" for="exportVisits">Visits (${(db.visits || []).length} records)</label>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="exportServices">
+          <label class="form-check-label" for="exportServices">Service Entries (${Object.keys(db.serviceEntries || {}).reduce((sum, key) => sum + (db.serviceEntries[key] || []).length, 0)} records)</label>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="exportAppointments">
+          <label class="form-check-label" for="exportAppointments">Appointments (${(db.appointments || []).length} records)</label>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="exportRegisters">
+          <label class="form-check-label" for="exportRegisters">Registers/Forms (${(db.registers || []).length} records)</label>
+        </div>
+        <div class="d-flex justify-content-between">
+          <button class="btn btn-primary" id="executeExport"><i class="bi bi-download me-1"></i>Export Selected</button>
+          <button class="btn btn-secondary" id="cancelExport">Cancel</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- CSV Export Modal -->
+    <div id="csvExportModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+      <div class="modal-content mx-auto mt-5" style="max-width:500px; background:white; border-radius:8px; padding:20px;">
+        <h5><i class="bi bi-file-earmark-csv me-2"></i>Export CSV (De-identified)</h5>
+        <p class="text-muted small">Export data as CSV files for external use. Personal identifiers will be removed:</p>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="csvPatients" checked>
+          <label class="form-check-label" for="csvPatients">Patients (anonymized)</label>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="csvVisits" checked>
+          <label class="form-check-label" for="csvVisits">Visits (anonymized)</label>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="csvServices">
+          <label class="form-check-label" for="csvServices">Service Entries (anonymized)</label>
+        </div>
+        <div class="d-flex justify-content-between">
+          <button class="btn btn-success" id="executeCsvExport"><i class="bi bi-file-earmark-csv me-1"></i>Export CSV</button>
+          <button class="btn btn-secondary" id="cancelCsvExport">Cancel</button>
+        </div>
+      </div>
+    </div>
+    
   </div>
   `;
 
@@ -160,342 +246,238 @@ export function renderUserDashboard(container) {
     window.location.hash = "#login";
   };
 
-
-
-  const exportBackupBtn = container.querySelector('a[href="#export-backup"]');
-  if (exportBackupBtn) {
-    exportBackupBtn.onclick = (e) => {
-      e.preventDefault();
-      renderExportBackupPage(container);
+  const multiExportBtn = container.querySelector("#multiExportBtn");
+  const multiExportModal = container.querySelector("#multiExportModal");
+  
+  if (multiExportBtn) {
+    multiExportBtn.onclick = () => {
+      multiExportModal.style.display = "block";
     };
   }
-} // <-- Add this closing brace to end renderUserDashboard
-
-function renderExportBackupPage(container) {
-  const f = db.facility || {};
-  const meta = `
-    <div class="facility-meta mb-3">
-      ${f.image ? `<img src="${f.image}" alt="Facility Logo" style="max-height:60px; margin-bottom:8px;"><br>` : ""}
-      <span class="fw-bold">${f.name || ''}</span>
-      <div class="text-muted small">
-        ${[
-          f.region && `Region: ${f.region}`,
-          f.district && `District: ${f.district}`,
-          f.community && `Community: ${f.community}`,
-          f.contact && `Contact: ${f.contact}`
-        ].filter(Boolean).join(' | ')}
-      </div>
-    </div>
-  `;
-
-  container.innerHTML = `
-    <style>
-      @media (min-width: 768px) {
-        .dashboard-row-equal {
-          display: flex;
-          flex-wrap: wrap;
-        }
-        .dashboard-row-equal > [class^='col-'] {
-          display: flex;
-          flex-direction: column;
-        }
-        .dashboard-row-equal .card {
-          flex: 1 1 auto;
-          height: 100%;
-          min-height: 350px;
-        }
-      }
-      @media (max-width: 767.98px) {
-        .dashboard-row-equal .card {
-          min-height: unset;
-        }
-      }
-    </style>
-    <div class="container my-4">
-      ${meta}
-      <div class="row mt-4 g-3 dashboard-row-equal">
-        <div class="col-12 col-md-6 d-flex">
-          <div class="card shadow mb-4 flex-fill">
-            <div class="card-body d-flex flex-column">
-              <h5><i class="bi bi-cloud-arrow-down"></i> Export & Backup</h5>
-              <div class="list-group mb-3 flex-grow-1">
-                <button class="list-group-item list-group-item-action" id="bulkExportBtn"><i class="bi bi-cloud-arrow-down me-2"></i> Bulk Export (Select Multiple)</button>
-                <button class="list-group-item list-group-item-action" id="exportSetup"><i class="bi bi-cloud-arrow-up me-2"></i> Export Setup</button>
-                <button class="list-group-item list-group-item-action" id="backupBtn"><i class="bi bi-download me-2"></i> Download Full Backup</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-12 col-md-6 d-flex">
-          <div class="card shadow mb-4 flex-fill">
-            <div class="card-body d-flex flex-column">
-              <h5><i class="bi bi-upload"></i> Import & Restore</h5>
-              <div class="list-group mb-3 flex-grow-1">
-                <label class="list-group-item list-group-item-action" style="cursor:pointer;">
-                  <i class="bi bi-upload me-2"></i> Bulk Import (Auto-detect Type)
-                  <input type="file" id="bulkImportFile" hidden multiple accept=".json">
-                </label>
-                <label class="list-group-item list-group-item-action" style="cursor:pointer;">
-                  <i class="bi bi-upload me-2"></i> Restore Full Backup
-                  <input type="file" id="restoreFile" hidden accept=".json">
-                </label>
-              </div>
-              <div id="importMsg" class="small mt-2 text-muted"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="text-center mt-4">
-        <a href="#user-dashboard" id="backToDashboardBtn" class="btn btn-link text-primary" style="font-size:1.1rem;">
-          <i class="bi bi-arrow-left-circle-fill me-1"></i> Back to Dashboard
-        </a>
-      </div>
-    </div>
-  `;
-
-  container.querySelector("#bulkExportBtn")?.addEventListener("click", () => {
-    showBulkExportModal();
-  });
-  container.querySelector("#exportSetup")?.addEventListener("click", () => {
-    const setupData = {
-      facility: db.facility,
-      settings: db.settings,
-      users: db.users,
-      registers: db.registers,
-      roles: db.roles,
-      servicesList: db.servicesList,
-      customPatientFields: db.customPatientFields
+  
+  const cancelExportBtn = container.querySelector("#cancelExport");
+  if (cancelExportBtn) {
+    cancelExportBtn.onclick = () => {
+      multiExportModal.style.display = "none";
     };
-    const blob = new Blob([JSON.stringify(setupData, null, 2)], { type: "application/json" });
+  }
+  
+  const executeExportBtn = container.querySelector("#executeExport");
+  if (executeExportBtn) {
+    executeExportBtn.onclick = () => {
+      const selectedData = {};
+      let filename = "export";
+      
+      if (container.querySelector("#exportPatients").checked) {
+        selectedData.patients = db.patients || [];
+        filename += "_patients";
+      }
+      if (container.querySelector("#exportVisits").checked) {
+        selectedData.visits = db.visits || [];
+        filename += "_visits";
+      }
+      if (container.querySelector("#exportServices").checked) {
+        selectedData.serviceEntries = db.serviceEntries || {};
+        filename += "_services";
+      }
+      if (container.querySelector("#exportAppointments").checked) {
+        selectedData.appointments = db.appointments || [];
+        filename += "_appointments";
+      }
+      if (container.querySelector("#exportRegisters").checked) {
+        selectedData.registers = db.registers || [];
+        selectedData.customPatientFields = db.customPatientFields || [];
+        filename += "_registers";
+      }
+      
+      if (Object.keys(selectedData).length === 0) {
+        alert("Please select at least one data type to export.");
+        return;
+      }
+
+      selectedData.meta = {
+        facility: db.facility || {},
+        exported: new Date().toISOString(),
+        exportType: "multi-select"
+      };
+      
+      const encrypted = exportUtils.encryptData(JSON.stringify(selectedData, null, 2));
+      const blob = new Blob([encrypted], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename + ".json";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { 
+        document.body.removeChild(a); 
+        URL.revokeObjectURL(url); 
+      }, 100);
+      
+      multiExportModal.style.display = "none";
+    };
+  }
+
+  const csvExportBtn = container.querySelector("#csvExportBtn");
+  const csvExportModal = container.querySelector("#csvExportModal");
+  
+  if (csvExportBtn) {
+    csvExportBtn.onclick = () => {
+      csvExportModal.style.display = "block";
+    };
+  }
+  
+  const cancelCsvExportBtn = container.querySelector("#cancelCsvExport");
+  if (cancelCsvExportBtn) {
+    cancelCsvExportBtn.onclick = () => {
+      csvExportModal.style.display = "none";
+    };
+  }
+  
+  const executeCsvExportBtn = container.querySelector("#executeCsvExport");
+  if (executeCsvExportBtn) {
+    executeCsvExportBtn.onclick = () => {
+
+      const anonymizePatientData = (patients) => {
+        return patients.map((p, index) => ({
+          id: `PATIENT_${String(index + 1).padStart(4, '0')}`,
+          ageGroup: p.age ? (p.age < 18 ? 'Under 18' : p.age < 65 ? '18-64' : '65+') : '',
+          sex: p.sex || '',
+          registrationDate: p.registrationDate || '',
+          region: db.facility?.region || '',
+          district: db.facility?.district || '',
+          facilityType: 'Health Facility'
+        }));
+      };
+      
+      const anonymizeVisitData = (visits) => {
+        const patientMap = {};
+        (db.patients || []).forEach((p, index) => {
+          patientMap[p.patientID] = `PATIENT_${String(index + 1).padStart(4, '0')}`;
+        });
+        
+        return visits.map(v => ({
+          anonymizedPatientId: patientMap[v.patientID] || 'UNKNOWN',
+          visitDate: v.date || v.visitDate || '',
+          serviceType: v.service || v.serviceType || '',
+          outcome: v.outcome || '',
+          region: db.facility?.region || '',
+          facility: db.facility?.name || ''
+        }));
+      };
+      
+      if (container.querySelector("#csvPatients").checked) {
+        const anonymizedPatients = anonymizePatientData(db.patients || []);
+        const csv = convertToCSV(anonymizedPatients);
+        downloadCSV(csv, 'anonymized_patients.csv');
+      }
+      
+      if (container.querySelector("#csvVisits").checked) {
+        const anonymizedVisits = anonymizeVisitData(db.visits || []);
+        const csv = convertToCSV(anonymizedVisits);
+        downloadCSV(csv, 'anonymized_visits.csv');
+      }
+      
+      if (container.querySelector("#csvServices").checked) {
+
+        const allServices = [];
+        Object.keys(db.serviceEntries || {}).forEach(regName => {
+          (db.serviceEntries[regName] || []).forEach(entry => {
+            allServices.push({
+              anonymizedPatientId: `PATIENT_${String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0')}`,
+              serviceType: regName,
+              entryDate: entry.visitDate || '',
+              region: db.facility?.region || '',
+              facility: db.facility?.name || ''
+            });
+          });
+        });
+        const csv = convertToCSV(allServices);
+        downloadCSV(csv, 'anonymized_services.csv');
+      }
+      
+      csvExportModal.style.display = "none";
+    };
+  }
+
+  function convertToCSV(data) {
+    if (!data.length) return '';
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => headers.map(header => {
+        const value = row[header] || '';
+        return `"${String(value).replace(/"/g, '""')}"`;
+      }).join(','))
+    ].join('\n');
+    return csvContent;
+  }
+  
+  function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = "system-setup.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-  container.querySelector("#backupBtn")?.addEventListener("click", () => {
-    const encrypted = exportUtils.encryptData(JSON.stringify(db));
-    const blob = new Blob([encrypted], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `thynktech-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
-    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-  });
-  container.querySelector("#backToDashboardBtn")?.addEventListener("click", e => {
-    e.preventDefault();
-    window.location.hash = "#user-dashboard";
-  });
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }
 
-  container.querySelector("#bulkImportFile")?.addEventListener("change", e => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    
-    processBulkImport(files);
-  });
-  container.querySelector("#importPatients")?.addEventListener("change", e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      try {
-        let data;
-        try {
-
-          data = JSON.parse(ev.target.result);
-        } catch {
-          try {
-
-            const decoded = exportUtils.decryptData(ev.target.result);
-            data = JSON.parse(decoded);
-          } catch {
-
-            try {
-              const decoded = atob(ev.target.result);
-              data = JSON.parse(decoded);
-            } catch {
-              throw new Error('Invalid file format. Please ensure you are importing a valid export file.');
-            }
-          }
-        }
-        
-        let imported = 0;
-        const patients = data.patients || [];
-        
-        patients.forEach(patient => {
-          if (!db.patients.some(existing => 
-            existing.patientID === patient.patientID || 
-            (existing.id && patient.id && existing.id === patient.id)
-          )) {
-            db.patients.push(patient);
-            imported++;
-          }
-        });
-        
-        saveDb();
-        container.querySelector("#importMsg").textContent = `Successfully imported ${imported} patients.`;
-        container.querySelector("#importMsg").className = "small mt-2 text-success";
-      } catch (err) {
-        container.querySelector("#importMsg").textContent = `Import failed: ${err.message}`;
-        container.querySelector("#importMsg").className = "small mt-2 text-danger";
-      }
+  const backupBtn = container.querySelector("#backupBtn");
+  if (backupBtn) {
+    backupBtn.onclick = () => {
+      const backupData = {
+        ...db,
+        timestamp: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
     };
-    reader.readAsText(file);
-  });
-  
-  container.querySelector("#importVisits")?.addEventListener("change", e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      try {
-        let data;
+  }
+
+  const restoreInput = container.querySelector("#restoreFile");
+  if (restoreInput) {
+    restoreInput.addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (!confirm("Are you sure you want to restore from backup? This will overwrite all current data.")) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
         try {
-
-          data = JSON.parse(ev.target.result);
-        } catch {
+          let decrypted;
           try {
-
-            const decoded = exportUtils.decryptData(ev.target.result);
-            data = JSON.parse(decoded);
+            decrypted = exportUtils.decryptData(ev.target.result);
           } catch {
-
-            try {
-              const decoded = atob(ev.target.result);
-              data = JSON.parse(decoded);
-            } catch {
-              throw new Error('Invalid file format. Please ensure you are importing a valid export file.');
-            }
+            decrypted = ev.target.result; // Fallback to plain text (legacy)
           }
+          const restored = JSON.parse(decrypted);
+          Object.keys(db).forEach(k => delete db[k]);
+          Object.assign(db, restored);
+          saveDb();
+          container.querySelector("#backupMsg").innerHTML = `<div class="text-success">Restore complete. Please reload the page.</div>`;
+        } catch (err) {
+          container.querySelector("#backupMsg").innerHTML = `<div class="text-danger">Restore failed: Invalid or corrupted encrypted file.</div>`;
         }
-        
-        let imported = 0;
-        const visits = data.visits || [];
-        
-        visits.forEach(visit => {
-          if (!db.visits.some(existing => 
-            existing.visitID === visit.visitID || 
-            (existing.id && visit.id && existing.id === visit.id)
-          )) {
-            db.visits.push(visit);
-            imported++;
-          }
-        });
-        
-        saveDb();
-        container.querySelector("#importMsg").textContent = `Successfully imported ${imported} visits.`;
-        container.querySelector("#importMsg").className = "small mt-2 text-success";
-      } catch (err) {
-        container.querySelector("#importMsg").textContent = `Import failed: ${err.message}`;
-        container.querySelector("#importMsg").className = "small mt-2 text-danger";
-      }
-    };
-    reader.readAsText(file);
-  });
-  
-  container.querySelector("#importServices")?.addEventListener("change", e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      try {
-        let data;
-        try {
+      };
+      reader.readAsText(file);
+    });
+  }
 
-          data = JSON.parse(ev.target.result);
-        } catch {
-          try {
 
-            const decoded = exportUtils.decryptData(ev.target.result);
-            data = JSON.parse(decoded);
-          } catch {
-
-            try {
-              const decoded = atob(ev.target.result);
-              data = JSON.parse(decoded);
-            } catch {
-              throw new Error('Invalid file format. Please ensure you are importing a valid export file.');
-            }
-          }
-        }
-        
-        let imported = 0;
-        const services = data.services || [];
-        
-        services.forEach(service => {
-          if (!db.services.some(existing => 
-            existing.serviceID === service.serviceID || 
-            (existing.id && service.id && existing.id === service.id)
-          )) {
-            db.services.push(service);
-            imported++;
-          }
-        });
-        
-        saveDb();
-        container.querySelector("#importMsg").textContent = `Successfully imported ${imported} services.`;
-        container.querySelector("#importMsg").className = "small mt-2 text-success";
-      } catch (err) {
-        container.querySelector("#importMsg").textContent = `Import failed: ${err.message}`;
-        container.querySelector("#importMsg").className = "small mt-2 text-danger";
-      }
-    };
-    reader.readAsText(file);
-  });
-  
-  container.querySelector("#restoreFile")?.addEventListener("change", e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    if (!confirm('Are you sure you want to restore from backup? This will overwrite all current data.')) {
-      e.target.value = '';
-      return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      try {
-        let restored;
-        try {
-
-          restored = JSON.parse(ev.target.result);
-        } catch {
-          try {
-
-            restored = JSON.parse(exportUtils.decryptData(ev.target.result));
-          } catch {
-
-            try {
-              const decoded = atob(ev.target.result);
-              restored = JSON.parse(decoded);
-            } catch {
-              throw new Error('Invalid backup file format. Please ensure you are importing a valid backup file.');
-            }
-          }
-        }
-
-        Object.keys(db).forEach(key => delete db[key]);
-        Object.assign(db, restored);
-        saveDb();
-        
-        container.querySelector("#importMsg").textContent = 'System restored successfully. Please reload the page.';
-        container.querySelector("#importMsg").className = "small mt-2 text-success";
-
-        setTimeout(() => window.location.reload(), 2000);
-      } catch (err) {
-        container.querySelector("#importMsg").textContent = `Restore failed: ${err.message}`;
-        container.querySelector("#importMsg").className = "small mt-2 text-danger";
-      }
-    };
-    reader.readAsText(file);
-  });
-}
+} // <-- End renderUserDashboard
 
 function exportAsExcel(data, filename) {
 
@@ -1228,4 +1210,120 @@ function autoDetectAndImport(data, filename) {
   }
   
   return false;
+}
+
+function processUserBulkImport(files, container) {
+  let totalImported = { patients: 0, visits: 0, services: 0, registers: 0, appointments: 0 };
+  let processedFiles = 0;
+  
+  Array.from(files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        let data;
+        try {
+
+          data = JSON.parse(ev.target.result);
+        } catch {
+          try {
+
+            const decoded = exportUtils.decryptData(ev.target.result);
+            data = JSON.parse(decoded);
+          } catch {
+
+            try {
+              const decoded = atob(ev.target.result);
+              data = JSON.parse(decoded);
+            } catch {
+              throw new Error('Invalid file format. Please ensure you are importing a valid export file.');
+            }
+          }
+        }
+
+        if (data.patients) {
+          data.patients.forEach(patient => {
+            if (!db.patients.some(existing => 
+              existing.patientID === patient.patientID || 
+              (existing.id && patient.id && existing.id === patient.id)
+            )) {
+              db.patients.push(patient);
+              totalImported.patients++;
+            }
+          });
+        }
+        
+        if (data.visits) {
+          data.visits.forEach(visit => {
+            if (!db.visits.some(existing => 
+              existing.visitID === visit.visitID || 
+              (existing.id && visit.id && existing.id === visit.id)
+            )) {
+              db.visits.push(visit);
+              totalImported.visits++;
+            }
+          });
+        }
+        
+        if (data.services || data.serviceDelivery) {
+          const services = data.services || data.serviceDelivery || [];
+          services.forEach(service => {
+            if (!db.serviceDelivery.some(existing => 
+              existing.serviceID === service.serviceID || 
+              (existing.id && service.id && existing.id === service.id)
+            )) {
+              db.serviceDelivery.push(service);
+              totalImported.services++;
+            }
+          });
+        }
+        
+        if (data.registers) {
+          data.registers.forEach(register => {
+            if (!db.registers.some(existing => 
+              existing.name === register.name || 
+              (existing.id && register.id && existing.id === register.id)
+            )) {
+              db.registers.push(register);
+              totalImported.registers++;
+            }
+          });
+        }
+        
+        if (data.appointments) {
+          data.appointments.forEach(appointment => {
+            if (!db.appointments.some(existing => 
+              existing.id === appointment.id || 
+              (existing.patientID === appointment.patientID && existing.appointmentDate === appointment.appointmentDate)
+            )) {
+              db.appointments.push(appointment);
+              totalImported.appointments++;
+            }
+          });
+        }
+        
+        processedFiles++;
+
+        if (processedFiles === files.length) {
+          saveDb();
+          const importSummary = Object.entries(totalImported)
+            .filter(([key, count]) => count > 0)
+            .map(([key, count]) => `${count} ${key}`)
+            .join(', ');
+          
+          container.querySelector("#importMsg").textContent = importSummary 
+            ? `Successfully imported: ${importSummary}` 
+            : "No new data imported (all data already exists)";
+          container.querySelector("#importMsg").className = "small mt-2 text-success";
+        }
+        
+      } catch (err) {
+        processedFiles++;
+        if (processedFiles === files.length) {
+          container.querySelector("#importMsg").textContent = `Import failed: ${err.message}`;
+          container.querySelector("#importMsg").className = "small mt-2 text-danger";
+        }
+      }
+    };
+    reader.readAsText(file);
+  });
 }
