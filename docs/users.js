@@ -32,17 +32,11 @@ export function renderUserDashboard(container) {
 
   const facility = db.facility || {};
   const facilityMeta = `
-    <div class="facility-meta mb-3">
-      ${facility.image ? `<img src="${facility.image}" alt="Facility Logo" style="max-height:60px; margin-bottom:8px;"><br>` : ""}
-      <span class="fw-bold">${facility.name || ''}</span>
-      <div class="text-muted small">
-        ${[
-          facility.region && `Region: ${facility.region}`,
-          facility.district && `District: ${facility.district}`,
-          facility.community && `Community: ${facility.community}`,
-          facility.contact && `Contact: ${facility.contact}`
-        ].filter(Boolean).join(' | ')}
-      </div>
+    <div class="alert alert-info small mb-2 d-flex align-items-center">
+      <img src="${facility.image || 'logo.png'}" height="36" class="me-2" style="border-radius:8px;">
+      <b>${facility.name || ''}</b>
+      <span class="ms-2 text-muted">${facility.region || ''} / ${facility.district || ''} / ${facility.community || ''}</span>
+      ${user.username ? `<span class='ms-auto'><a href="#profile" id="userProfileLinkTop" class="text-decoration-none text-dark"><i class='bi bi-person-circle'></i> <b>${user.username}</b></a></span>` : ''}
     </div>
   `;
 
@@ -72,7 +66,7 @@ export function renderUserDashboard(container) {
     }
   </style>
   <div class="container my-4">
-    ${facilityMeta}
+    ${db.facility ? facilityMeta : ""}
     <div class="row mt-4 g-3 dashboard-row-equal">
       <div class="col-12 col-md-6 d-flex">
         <div class="card shadow mb-4 flex-fill">
@@ -322,9 +316,22 @@ export function renderUserDashboard(container) {
     }, 500);
   }
   setTimeout(() => {
+
     const profileLink = document.getElementById('userProfileLink');
     if (profileLink) {
       profileLink.onclick = (e) => {
+        e.preventDefault();
+        renderProfile(container, {
+          getUser: () => db.currentUser,
+          updateUser: (u) => { db.currentUser = u; saveDb(); },
+          dashboardHash: '#dashboard'
+        });
+      };
+    }
+
+    const profileLinkTop = document.getElementById('userProfileLinkTop');
+    if (profileLinkTop) {
+      profileLinkTop.onclick = (e) => {
         e.preventDefault();
         renderProfile(container, {
           getUser: () => db.currentUser,
