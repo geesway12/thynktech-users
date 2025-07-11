@@ -81,8 +81,21 @@ window.addEventListener("hashchange", router);
 window.addEventListener("load", () => {
   loadDb();
   registerServiceWorker();
+  initializeTheme(); // Initialize theme on app start
   router();
 });
+
+function initializeTheme() {
+  const savedTheme = localStorage.getItem('userTheme') || 'blue';
+
+  document.body.classList.remove(
+    'theme-blue', 'theme-green', 'theme-purple', 'theme-orange', 
+    'theme-teal', 'theme-gold', 'theme-gray', 'theme-dark', 
+    'theme-mint', 'theme-coral'
+  );
+
+  document.body.classList.add(`theme-${savedTheme}`);
+}
 
 window.renderUserBackupUI = function(container) {
   container.innerHTML = `
