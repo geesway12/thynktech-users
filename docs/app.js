@@ -7,7 +7,7 @@ import { renderVisitLog } from './visits.js';
 import { renderReports } from './reports.js';
 import { renderServiceVisitSelector } from './services.js';
 import { renderUserDashboard } from './users.js';
-import { renderAppointmentForm } from './appointments.js';
+import { renderAppointmentForm, renderAppointmentList } from './appointments.js';
 import {
   exportPatientsJSON,
   exportVisitsJSON,
@@ -60,6 +60,7 @@ function router() {
   else if (hash === "#patient-reg" || hash === "#patient-list") renderPatientList(app);
   else if (hash === "#visit-log") renderVisitLog(app);
   else if (hash === "#reports") renderReports(app);
+  else if (hash === "#appointments") renderAppointmentList(app);
   else if (hash === "#profile") {
     import('./helpers.js').then(mod => mod.renderProfile(app, {
       getUser: () => db.currentUser,

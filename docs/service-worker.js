@@ -1,11 +1,12 @@
-const CACHE_NAME = "thynktech-cache-v2";
+const CACHE_NAME = "thynktech-cache-v3";
 const urlsToCache = [
   "/",
   "/index.html",
   "/offline.html",
-  "/styles.css",
+  "./styles.css",
   "/favicon.ico",
-  "/logo.png",
+  "/logo-light.png",
+  "/logo-dark.png",
   "/icon-192.png",
   "/icon-512.png",
   "/manifest.json",
@@ -20,6 +21,7 @@ const urlsToCache = [
   "./db.js",
   "./export.js",
   "./helpers.js",
+  "./layout.js",
   "./patients.js",
   "./reports.js",
   "./services.js",

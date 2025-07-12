@@ -3,6 +3,7 @@ import { renderServiceVisitSelector } from './services.js';
 import { encryptData, decryptData } from './export.js';
 import { renderProfile, isPasswordExpired, showModal } from './helpers.js';
 import { renderLogin } from './auth.js';
+import { wrapWithLayout, setupLogoutButton } from './layout.js';
 import * as exportUtils from './export.js';
 
 export function renderUserLogin(root) {
@@ -31,65 +32,8 @@ export function renderUserDashboard(container) {
   const assignedForms = (db.registers || []).filter(r => assignedRegisters.includes(r.name));
 
   const facility = db.facility || {};
-  const facilityMeta = `
-    <div class="alert alert-info small mb-2 d-flex align-items-center">
-      <img src="${facility.image || 'logo.png'}" height="36" class="me-2" style="border-radius:8px;">
-      <b>${facility.name || ''}</b>
-      <span class="ms-2 text-muted">${facility.region || ''} / ${facility.district || ''} / ${facility.community || ''}</span>
-      <div class="ms-auto d-flex align-items-center gap-2">
-        <div class="theme-picker">
-          <button class="btn btn-outline-secondary btn-sm" id="themePickerBtn" title="Change Theme">
-            <i class="bi bi-palette me-1"></i><span class="d-none d-md-inline">Theme</span>
-          </button>
-          <div class="theme-dropdown" id="themeDropdown">
-            <div class="theme-option" data-theme="blue">
-              <span class="theme-swatch" style="background: #1976d2;"></span>
-              Ocean Blue
-            </div>
-            <div class="theme-option" data-theme="green">
-              <span class="theme-swatch" style="background: #2e7d32;"></span>
-              Forest Green
-            </div>
-            <div class="theme-option" data-theme="purple">
-              <span class="theme-swatch" style="background: #7b1fa2;"></span>
-              Royal Purple
-            </div>
-            <div class="theme-option" data-theme="orange">
-              <span class="theme-swatch" style="background: #f57c00;"></span>
-              Warm Orange
-            </div>
-            <div class="theme-option" data-theme="teal">
-              <span class="theme-swatch" style="background: #00695c;"></span>
-              Deep Teal
-            </div>
-            <div class="theme-option" data-theme="gold">
-              <span class="theme-swatch" style="background: #ff8f00;"></span>
-              Golden Yellow
-            </div>
-            <div class="theme-option" data-theme="gray">
-              <span class="theme-swatch" style="background: #424242;"></span>
-              Neutral Gray
-            </div>
-            <div class="theme-option" data-theme="mint">
-              <span class="theme-swatch" style="background: #00796b;"></span>
-              Fresh Mint
-            </div>
-            <div class="theme-option" data-theme="coral">
-              <span class="theme-swatch" style="background: #d84315;"></span>
-              Coral Red
-            </div>
-            <div class="theme-option" data-theme="dark">
-              <span class="theme-swatch" style="background: #121212; border-color: #666;"></span>
-              Dark Mode
-            </div>
-          </div>
-        </div>
-        ${user.username ? `<a href="#profile" id="userProfileLinkTop" class="text-decoration-none text-dark"><i class='bi bi-person-circle'></i> <b>${user.username}</b></a>` : ''}
-      </div>
-    </div>
-  `;
 
-  container.innerHTML = `
+  const dashboardContent = `
   <style>
     .apt-day-label { font-weight: bold; color: #2a2a2a; margin-bottom: 0.5rem; }
     .apt-day-list { margin-bottom: 1.2em; }
@@ -115,7 +59,6 @@ export function renderUserDashboard(container) {
     }
   </style>
   <div class="container my-4">
-    ${db.facility ? facilityMeta : ""}
     <div class="row mt-4 g-3 dashboard-row-equal">
       <div class="col-12 col-md-6 d-flex">
         <div class="card shadow mb-4 flex-fill">
@@ -237,6 +180,10 @@ export function renderUserDashboard(container) {
     
   </div>
   `;
+
+  container.innerHTML = wrapWithLayout(dashboardContent, 'dashboard');
+
+  setTimeout(setupLogoutButton, 100);
 
 
   const upcomingDiv = container.querySelector('#upcomingAppointments');
